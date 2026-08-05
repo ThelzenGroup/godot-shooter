@@ -1,0 +1,28 @@
+name: Godot CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.7.1 headless
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip"
+          curl --fail --location --silent --show-error --head "$url"
+          curl --fail --location --silent --show-error "$url" -o godot.zip
+          unzip -q godot.zip
+          mv Godot_v4.7.1-stable_linux.x86_64 godot
+          chmod +x godot
+      - name: Import project
+        run: ./godot --headless --path . --import --quit
+      - name: Headless smoke run
+        run: |
+          set -o pipefail
+          ./godot --headless --path . --quit-after 300 2>&1 | tee smoke.log
+          ! grep -E "SCRIPT ERROR|ERROR|Condition" smoke.log
