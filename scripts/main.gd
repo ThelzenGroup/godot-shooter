@@ -19,6 +19,8 @@ var pause_menu: Control
 var game_over: Control
 var victory: Control
 var main_menu: Control
+var hud: CanvasLayer
+var menu_layer: CanvasLayer
 var state: GameStateModel
 
 func _ready() -> void:
@@ -31,16 +33,21 @@ func _ready() -> void:
 	player = PLAYER_SCENE.instantiate() as ArenaPlayer
 	player.position = Vector3(0, 0.0, 12)
 	add_child(player)
-	add_child(HUD_SCENE.instantiate())
+	hud = HUD_SCENE.instantiate() as CanvasLayer
+	add_child(hud)
+	menu_layer = CanvasLayer.new()
+	menu_layer.layer = 10
+	add_child(menu_layer)
 	pause_menu = PAUSE_SCENE.instantiate()
-	add_child(pause_menu)
+	menu_layer.add_child(pause_menu)
 	game_over = GAME_OVER_SCENE.instantiate()
-	add_child(game_over)
+	menu_layer.add_child(game_over)
 	victory = VICTORY_SCENE.instantiate()
-	add_child(victory)
+	menu_layer.add_child(victory)
 	main_menu = MAIN_MENU_SCENE.instantiate()
-	add_child(main_menu)
+	menu_layer.add_child(main_menu)
 	player.process_mode = Node.PROCESS_MODE_DISABLED
+	hud.set_gameplay_visible(false)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _process(delta: float) -> void:
@@ -54,6 +61,7 @@ func _begin_game() -> void:
 	mode = GameMode.INTERMISSION
 	countdown = 2.0
 	main_menu.visible = false
+	hud.set_gameplay_visible(true)
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	state.mode_changed.emit("READY", "First wave incoming")
@@ -102,6 +110,7 @@ func _on_player_died() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	game_over.visible = true
+	hud.set_gameplay_visible(false)
 
 func _on_victory() -> void:
 	if mode == GameMode.VICTORY:
@@ -111,6 +120,7 @@ func _on_victory() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	victory.visible = true
+	hud.set_gameplay_visible(false)
 
 func toggle_pause() -> void:
 	if mode == GameMode.GAME_OVER or mode == GameMode.VICTORY:
@@ -121,6 +131,7 @@ func toggle_pause() -> void:
 		mode = GameMode.PAUSED
 		get_tree().paused = true
 		pause_menu.visible = true
+		hud.set_gameplay_visible(false)
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func menu_primary() -> void:
@@ -129,6 +140,7 @@ func menu_primary() -> void:
 	elif mode == GameMode.PAUSED:
 		mode = GameMode.FIGHTING if state.wave > 0 else GameMode.INTERMISSION
 		pause_menu.visible = false
+		hud.set_gameplay_visible(true)
 		get_tree().paused = false
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:

@@ -6,11 +6,14 @@ var status_label: Label
 var crosshair: Label
 var vignette: ColorRect
 var state: GameStateModel
+var hud_root: Control
 
 func _ready() -> void:
 	var root := Control.new()
+	hud_root = root
 	state = get_node("/root/GameState") as GameStateModel
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -18,6 +21,7 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_top", 20)
 	root.add_child(margin)
 	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(column)
 	health_label = Label.new()
 	ammo_label = Label.new()
@@ -33,6 +37,7 @@ func _ready() -> void:
 	crosshair.size = Vector2(48, 48)
 	crosshair.position -= crosshair.size / 2.0
 	crosshair.add_theme_font_size_override("font_size", 28)
+	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(crosshair)
 	vignette = ColorRect.new()
 	vignette.color = Color(0.8, 0.0, 0.0, 0.0)
@@ -45,6 +50,9 @@ func _ready() -> void:
 	_health(state.health, state.max_health)
 	_ammo(state.ammo, state.reserve)
 	_wave(state.wave, state.enemies_remaining, 0.0)
+
+func set_gameplay_visible(value: bool) -> void:
+	visible = value
 
 func _process(_delta: float) -> void:
 	var player := get_tree().get_first_node_in_group("player") as ArenaPlayer

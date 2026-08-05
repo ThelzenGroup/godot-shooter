@@ -14,7 +14,11 @@ func _initialize() -> void:
 	state = root.get_node("GameState") as GameStateModel
 	state.player_died.connect(func() -> void: death_seen = true)
 	player = main.get_node("Player") as ArenaPlayer
-	main.menu_primary()
+	var play_button := main.main_menu.primary_button as Button
+	_assert(play_button != null and play_button.visible, "main menu exposes clickable Play button")
+	print("CHECK: play rect ", play_button.get_global_rect(), " viewport ", play_button.get_viewport_rect(), " menu ", main.main_menu.visible)
+	await _click_control(play_button)
+	_assert(main.mode != main.GameMode.MENU, "Play button starts the game")
 	main.set("countdown", 999.0)
 	await _frames(120)
 	_assert(player != null, "player spawns")
@@ -96,7 +100,9 @@ func _initialize() -> void:
 	_assert(minimum_separation > 0.5, "enemy avoidance keeps converging enemies separated")
 	player.hurt(999)
 	_assert(death_seen and state.health == 0, "health reaching zero emits player death")
-	main.menu_primary()
+	var restart_button := main.game_over.primary_button as Button
+	_assert(restart_button != null and restart_button.visible, "game over exposes clickable Restart button")
+	await _click_control(restart_button)
 	await process_frame
 	state = root.get_node("GameState") as GameStateModel
 	_assert(not paused, "restart clears tree pause")
@@ -114,6 +120,18 @@ func _remove_enemies() -> void:
 
 func _inside_cover(position: Vector3) -> bool:
 	return (absf(position.x + 7.0) < 1.6 and absf(position.z) < 1.6) or (absf(position.x - 7.0) < 1.6 and absf(position.z) < 1.6) or (absf(position.x) < 1.6 and absf(position.z + 7.0) < 1.6) or (absf(position.x) < 1.6 and absf(position.z - 7.0) < 1.6)
+
+func _click_control(control: Control) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.position = control.get_global_rect().get_center()
+	event.pressed = true
+	var menu := control.get_parent().get_parent().get_parent() as Control
+	menu.call("_input", event)
+	await process_frame
+	event.pressed = false
+	if is_instance_valid(menu):
+		menu.call("_input", event)
 
 func _assert(value: bool, message: String) -> void:
 	if value:
