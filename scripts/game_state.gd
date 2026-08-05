@@ -1,3 +1,4 @@
+class_name GameStateModel
 extends Node
 
 signal health_changed(value: int, maximum: int)

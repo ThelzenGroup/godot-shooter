@@ -3,17 +3,18 @@ extends SceneTree
 var failures: Array[String] = []
 var main: Node3D
 var player: ArenaPlayer
-var state: Node
+var state: GameStateModel
 var death_seen: bool = false
 
 func _initialize() -> void:
 	main = load("res://scenes/Main.tscn").instantiate()
 	root.add_child(main)
+	current_scene = main
 	await process_frame
-	state = root.get_node("GameState")
+	state = root.get_node("GameState") as GameStateModel
 	state.player_died.connect(func() -> void: death_seen = true)
 	player = main.get_node("Player") as ArenaPlayer
-	player.movement_enabled = false
+	main.menu_primary()
 	main.set("countdown", 999.0)
 	await _frames(120)
 	_assert(player != null, "player spawns")
@@ -39,15 +40,27 @@ func _initialize() -> void:
 	enemy.queue_free()
 	await process_frame
 	var target := load("res://scenes/Enemy.tscn").instantiate() as ArenaEnemy
-	target.position = player.global_position + Vector3(0, 0, -4.0)
+	target.position = player.global_position + Vector3(8, 1, -4.0)
 	main.add_child(target)
 	target.setup(player, 0)
+	player.aim_override = target.global_position
+	player.spread_degrees = 0.0
+	await process_frame
+	var aim_query := PhysicsRayQueryParameters3D.create(player.camera.global_position, target.global_position)
+	aim_query.collision_mask = GameConstants.HITSCAN_MASK
+	aim_query.exclude = [player]
+	var aim_hit := main.get_world_3d().direct_space_state.intersect_ray(aim_query)
+	print("CHECK: aimed collider ", aim_hit.get("collider").name if not aim_hit.is_empty() else "none")
 	var ammo_before: int = state.ammo
-	player.fire_at(target)
+	player.fire()
 	_assert(state.ammo == ammo_before - 1, "firing decrements ammo")
 	_assert(target.health < target.base_health, "firing damages enemy")
+	_assert(player.camera.rotation.x < player.pitch, "firing applies camera recoil offset")
+	await _frames(300)
+	_assert(absf(player.camera.rotation.x - player.pitch) < 0.02, "recoil returns camera to pitch")
 	for _index in range(3):
-		player.fire_at(target)
+		await _frames(30)
+		player.fire()
 	_assert(not is_instance_valid(target) or target.health <= 0, "enough shots kill enemy")
 	player.switch_weapon(2)
 	_assert(state.ammo <= 30, "weapon switch clamps magazine")
@@ -68,8 +81,26 @@ func _initialize() -> void:
 		main.set("countdown", 0.0)
 		await _frames(5)
 	_assert(state.wave >= 2, "wave state advances beyond wave one")
+	var converging: Array[ArenaEnemy] = []
+	for position in [Vector3(-8, 1, 12), Vector3(8, 1, 12), Vector3(-10, 1, 8), Vector3(10, 1, 8)]:
+		var converging_enemy := load("res://scenes/Enemy.tscn").instantiate() as ArenaEnemy
+		converging_enemy.position = position
+		main.add_child(converging_enemy)
+		converging_enemy.setup(player, 0)
+		converging.append(converging_enemy)
+	await _frames(120)
+	var minimum_separation: float = 999.0
+	for first in range(converging.size()):
+		for second in range(first + 1, converging.size()):
+			minimum_separation = minf(minimum_separation, converging[first].global_position.distance_to(converging[second].global_position))
+	_assert(minimum_separation > 0.5, "enemy avoidance keeps converging enemies separated")
 	player.hurt(999)
 	_assert(death_seen and state.health == 0, "health reaching zero emits player death")
+	main.menu_primary()
+	await process_frame
+	state = root.get_node("GameState") as GameStateModel
+	_assert(not paused, "restart clears tree pause")
+	_assert(state.health == state.max_health and state.wave == 0 and not state.dead, "restart fully resets GameState")
 	_cleanup()
 
 func _frames(amount: int) -> void:

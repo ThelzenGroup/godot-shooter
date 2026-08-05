@@ -1,6 +1,10 @@
 extends Node3D
 
 var navigation: NavigationRegion3D
+var cover_positions: Array[Vector3] = [
+	Vector3(-7, 1, 0), Vector3(7, 1, 0), Vector3(0, 1, -7), Vector3(0, 1, 7)
+]
+var cover_size: Vector3 = Vector3(3, 2, 3)
 var spawn_points: Array[Vector3] = [
 	Vector3(-15, 0.0, -15), Vector3(15, 0.0, -15),
 	Vector3(-15, 0.0, 15), Vector3(15, 0.0, 15),
@@ -37,14 +41,14 @@ func _build_geometry() -> void:
 	_add_box(Vector3(0, 2.0, 20), Vector3(40, 5, 1), Color(0.16, 0.19, 0.27))
 	_add_box(Vector3(-20, 2.0, 0), Vector3(1, 5, 40), Color(0.16, 0.19, 0.27))
 	_add_box(Vector3(20, 2.0, 0), Vector3(1, 5, 40), Color(0.16, 0.19, 0.27))
-	for position in [Vector3(-7, 1, 0), Vector3(7, 1, 0), Vector3(0, 1, -7), Vector3(0, 1, 7)]:
-		_add_box(position, Vector3(3, 2, 3), Color(0.28, 0.34, 0.43))
+	for position in cover_positions:
+		_add_box(position, cover_size, Color(0.28, 0.34, 0.43))
 
 func _add_box(position: Vector3, size: Vector3, color: Color) -> void:
 	var body := StaticBody3D.new()
 	body.position = position
-	body.collision_layer = 1
-	body.collision_mask = 7
+	body.collision_layer = GameConstants.WORLD_LAYER
+	body.collision_mask = GameConstants.WORLD_MASK
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
@@ -75,9 +79,12 @@ func _build_navigation() -> void:
 			var center := Vector3((float(x) + 0.5) * 2.0, 0.01, (float(z) + 0.5) * 2.0)
 			if absf(center.x) > 18.5 or absf(center.z) > 18.5:
 				continue
-			if (absf(center.x + 7.0) < 2.0 and absf(center.z) < 2.0) or (absf(center.x - 7.0) < 2.0 and absf(center.z) < 2.0):
-				continue
-			if (absf(center.x) < 2.0 and absf(center.z + 7.0) < 2.0) or (absf(center.x) < 2.0 and absf(center.z - 7.0) < 2.0):
+			var blocked := false
+			for cover_position in cover_positions:
+				if absf(center.x - cover_position.x) < cover_size.x * 0.5 + 0.5 and absf(center.z - cover_position.z) < cover_size.z * 0.5 + 0.5:
+					blocked = true
+					break
+			if blocked:
 				continue
 			var base := vertices.size()
 			vertices.append(center + Vector3(-1, 0, -1))

@@ -26,13 +26,13 @@ var reserves: Dictionary = {1: 72, 2: 120}
 var recoil: float = 0.0
 var damage_flash: float = 0.0
 var muzzle_light: OmniLight3D
-var state: Node
-var movement_enabled: bool = true
+var state: GameStateModel
+var aim_override: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	camera = get_node_or_null("Camera3D")
 	muzzle_light = get_node_or_null("MuzzleLight")
-	state = get_node("/root/GameState")
+	state = get_node("/root/GameState") as GameStateModel
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_sync_ammo()
 
@@ -52,8 +52,9 @@ func _physics_process(delta: float) -> void:
 			reload_left = 0.0
 			_finish_reload()
 	recoil = move_toward(recoil, 0.0, delta * 5.0)
+	camera.rotation.x = pitch - recoil
 	damage_flash = maxf(0.0, damage_flash - delta)
-	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if movement_enabled else Vector2.ZERO
+	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
 	var target_speed: float = sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	var target := direction * target_speed
@@ -89,14 +90,14 @@ func fire() -> void:
 	loaded[weapon_slot] -= 1
 	_sync_ammo()
 	recoil += 0.018 if weapon_slot == 2 else 0.028
-	camera.rotation.x -= recoil
+	camera.rotation.x = pitch - recoil
 	_show_muzzle_flash()
 	var spread := deg_to_rad(spread_degrees)
-	var direction := -camera.global_transform.basis.z
+	var direction := _fire_direction()
 	direction = direction.rotated(camera.global_transform.basis.x, randf_range(-spread, spread))
 	direction = direction.rotated(camera.global_transform.basis.y, randf_range(-spread, spread))
 	var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + direction * 120.0)
-	query.collision_mask = 1 | 4
+	query.collision_mask = GameConstants.HITSCAN_MASK
 	query.exclude = [self]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
@@ -105,13 +106,10 @@ func fire() -> void:
 			enemy.take_damage(int(stats["damage"]), hit.position)
 		get_tree().call_group("game", "spawn_impact", hit.position)
 
-func fire_at(target: ArenaEnemy) -> void:
-	var stats: Dictionary = WEAPONS[weapon_slot]
-	if loaded[weapon_slot] <= 0:
-		return
-	loaded[weapon_slot] -= 1
-	_sync_ammo()
-	target.take_damage(int(stats["damage"]), target.global_position)
+func _fire_direction() -> Vector3:
+	if aim_override != Vector3.ZERO:
+		return camera.global_position.direction_to(aim_override)
+	return -camera.global_transform.basis.z
 
 func start_reload() -> void:
 	if reload_left <= 0.0 and loaded[weapon_slot] < int(WEAPONS[weapon_slot]["magazine"]) and reserves[weapon_slot] > 0:

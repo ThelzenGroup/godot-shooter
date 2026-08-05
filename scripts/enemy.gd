@@ -14,13 +14,15 @@ var attack_cooldown: float = 0.0
 var agent: NavigationAgent3D
 var body_mesh: MeshInstance3D
 var hit_flash: float = 0.0
-var state: Node
+var state: GameStateModel
+var desired_velocity: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	health = base_health
 	agent = get_node_or_null("NavigationAgent3D")
 	body_mesh = get_node_or_null("Body")
-	state = get_node("/root/GameState")
+	state = get_node("/root/GameState") as GameStateModel
+	agent.velocity_computed.connect(_on_velocity_computed)
 
 func setup(target: ArenaPlayer, toughness: int) -> void:
 	player = target
@@ -46,15 +48,21 @@ func _physics_process(delta: float) -> void:
 			if distance <= attack_range and attack_cooldown <= 0.0 and _has_line_of_sight():
 				attack_cooldown = 1.0
 				player.hurt(attack_damage)
-	velocity.x = move_toward(velocity.x, direction.x * speed, speed * delta * 5.0)
-	velocity.z = move_toward(velocity.z, direction.z * speed, speed * delta * 5.0)
+	desired_velocity = Vector3(direction.x * speed, velocity.y, direction.z * speed)
+	agent.set_velocity(desired_velocity)
+	velocity.x = desired_velocity.x
+	velocity.z = desired_velocity.z
 	move_and_slide()
+
+func _on_velocity_computed(safe_velocity: Vector3) -> void:
+	velocity.x = safe_velocity.x
+	velocity.z = safe_velocity.z
 
 func _has_line_of_sight() -> bool:
 	if not is_instance_valid(player):
 		return false
 	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, player.global_position + Vector3.UP)
-	query.collision_mask = 1 | 2
+	query.collision_mask = GameConstants.WORLD_LAYER | GameConstants.PLAYER_LAYER
 	query.exclude = [self]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	return hit.is_empty() or hit.collider == player

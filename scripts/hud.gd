@@ -5,11 +5,11 @@ var ammo_label: Label
 var status_label: Label
 var crosshair: Label
 var vignette: ColorRect
-var state: Node
+var state: GameStateModel
 
 func _ready() -> void:
 	var root := Control.new()
-	state = get_node("/root/GameState")
+	state = get_node("/root/GameState") as GameStateModel
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
 	var margin := MarginContainer.new()
@@ -61,6 +61,6 @@ func _ammo(current: int, reserve: int) -> void:
 
 func _wave(value: int, remaining: int, countdown: float) -> void:
 	if status_label != null:
-		status_label.text = "SCORE  %d    WAVE  %d / 5    ENEMIES  %d" % [state.score, value, remaining]
+		status_label.text = "SCORE  %d    WAVE  %d / %d    ENEMIES  %d" % [state.score, value, GameConstants.MAX_WAVE, remaining]
 		if countdown > 0.0:
 			status_label.text += "    NEXT WAVE %.1f" % countdown

@@ -2,7 +2,6 @@ extends Node3D
 
 enum GameMode { MENU, INTERMISSION, FIGHTING, PAUSED, GAME_OVER, VICTORY }
 
-const MAX_WAVE: int = 5
 const PLAYER_SCENE: PackedScene = preload("res://scenes/Player.tscn")
 const ENEMY_SCENE: PackedScene = preload("res://scenes/Enemy.tscn")
 const ARENA_SCENE: PackedScene = preload("res://scenes/Arena.tscn")
@@ -20,11 +19,11 @@ var pause_menu: Control
 var game_over: Control
 var victory: Control
 var main_menu: Control
-var state: Node
+var state: GameStateModel
 
 func _ready() -> void:
 	add_to_group("game")
-	state = get_node("/root/GameState")
+	state = get_node("/root/GameState") as GameStateModel
 	state.reset()
 	state.player_died.connect(_on_player_died)
 	state.player_victory.connect(_on_victory)
@@ -41,11 +40,8 @@ func _ready() -> void:
 	add_child(victory)
 	main_menu = MAIN_MENU_SCENE.instantiate()
 	add_child(main_menu)
-	if DisplayServer.get_name() == "headless":
-		_begin_game()
-	else:
-		player.process_mode = Node.PROCESS_MODE_DISABLED
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _process(delta: float) -> void:
 	if mode == GameMode.INTERMISSION:
@@ -63,7 +59,7 @@ func _begin_game() -> void:
 	state.mode_changed.emit("READY", "First wave incoming")
 
 func _start_wave(number: int) -> void:
-	if number > MAX_WAVE:
+	if number > GameConstants.MAX_WAVE:
 		_on_victory()
 		return
 	mode = GameMode.FIGHTING
@@ -92,7 +88,7 @@ func enemy_defeated(_enemy: ArenaEnemy) -> void:
 	state.enemies_remaining = enemy_count
 	state.wave_changed.emit(state.wave, enemy_count, 0.0)
 	if enemy_count == 0 and mode == GameMode.FIGHTING:
-		if state.wave >= MAX_WAVE:
+		if state.wave >= GameConstants.MAX_WAVE:
 			_on_victory()
 		else:
 			mode = GameMode.INTERMISSION
@@ -136,6 +132,8 @@ func menu_primary() -> void:
 		get_tree().paused = false
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
+		get_tree().paused = false
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		get_tree().reload_current_scene()
 
 func spawn_impact(position: Vector3) -> void:
