@@ -35,6 +35,7 @@ func _ready() -> void:
 	state = get_node("/root/GameState") as GameStateModel
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_sync_ammo()
+	get_tree().call_group("game", "play_sound", "fire")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -114,6 +115,7 @@ func _fire_direction() -> Vector3:
 func start_reload() -> void:
 	if reload_left <= 0.0 and loaded[weapon_slot] < int(WEAPONS[weapon_slot]["magazine"]) and reserves[weapon_slot] > 0:
 		reload_left = reload_time
+		get_tree().call_group("game", "play_sound", "reload")
 
 func _finish_reload() -> void:
 	var magazine: int = int(WEAPONS[weapon_slot]["magazine"])
@@ -130,6 +132,7 @@ func _sync_ammo() -> void:
 
 func hurt(amount: int) -> void:
 	damage_flash = 0.25
+	get_tree().call_group("game", "play_sound", "hurt")
 	state.damage(amount)
 
 func _show_muzzle_flash() -> void:

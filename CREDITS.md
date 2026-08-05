@@ -1,0 +1,14 @@
+# Asset credits
+
+## Audio
+
+- **Impact Sounds** — https://kenney.nl/assets/impact-sounds — Creative Commons
+  CC0 — `assets/audio/impact.ogg`, `assets/audio/death.ogg`.
+- **UI Audio** — https://kenney.nl/assets/ui-audio — Creative Commons CC0 —
+  `assets/audio/click.ogg`, `assets/audio/reload.ogg`.
+- **Sci-fi Sounds** — https://kenney.nl/assets/sci-fi-sounds — Creative Commons
+  CC0 — `assets/audio/fire.ogg`, `assets/audio/enemy_death.ogg`.
+
+Only the individual clips used by the game were copied into the repository. The
+source pack license files were reviewed before extraction; the downloaded packs
+remain outside the repository.

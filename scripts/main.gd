@@ -10,6 +10,14 @@ const PAUSE_SCENE: PackedScene = preload("res://scenes/PauseMenu.tscn")
 const GAME_OVER_SCENE: PackedScene = preload("res://scenes/GameOver.tscn")
 const VICTORY_SCENE: PackedScene = preload("res://scenes/Victory.tscn")
 const MAIN_MENU_SCENE: PackedScene = preload("res://scenes/MainMenu.tscn")
+const AUDIO_STREAMS: Dictionary = {
+	"fire": preload("res://assets/audio/fire.ogg"),
+	"impact": preload("res://assets/audio/impact.ogg"),
+	"enemy_death": preload("res://assets/audio/enemy_death.ogg"),
+	"reload": preload("res://assets/audio/reload.ogg"),
+	"hurt": preload("res://assets/audio/death.ogg"),
+	"ui_click": preload("res://assets/audio/click.ogg")
+}
 
 var mode: GameMode = GameMode.MENU
 var countdown: float = 2.0
@@ -22,6 +30,7 @@ var main_menu: Control
 var hud: CanvasLayer
 var menu_layer: CanvasLayer
 var state: GameStateModel
+var audio_players: Dictionary = {}
 
 func _ready() -> void:
 	add_to_group("game")
@@ -29,6 +38,7 @@ func _ready() -> void:
 	state.reset()
 	state.player_died.connect(_on_player_died)
 	state.player_victory.connect(_on_victory)
+	_setup_audio()
 	add_child(ARENA_SCENE.instantiate())
 	player = PLAYER_SCENE.instantiate() as ArenaPlayer
 	player.position = Vector3(0, 0.0, 12)
@@ -66,6 +76,30 @@ func _begin_game() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	state.mode_changed.emit("READY", "First wave incoming")
 
+func _setup_audio() -> void:
+	for sound_name in AUDIO_STREAMS:
+		var player := AudioStreamPlayer.new()
+		player.name = "Audio_" + sound_name
+		player.stream = AUDIO_STREAMS[sound_name]
+		player.volume_db = -8.0
+		add_child(player)
+		audio_players[sound_name] = player
+
+func play_sound(sound_name: String) -> void:
+	var player := audio_players.get(sound_name) as AudioStreamPlayer
+	if player != null:
+		player.play()
+
+func play_sound_3d(sound_name: String, position: Vector3) -> void:
+	var player := AudioStreamPlayer3D.new()
+	player.stream = AUDIO_STREAMS.get(sound_name) as AudioStream
+	player.volume_db = -8.0
+	add_child(player)
+	player.global_position = position
+	player.play()
+	var timer := get_tree().create_timer(2.0)
+	timer.timeout.connect(player.queue_free)
+
 func _start_wave(number: int) -> void:
 	if number > GameConstants.MAX_WAVE:
 		_on_victory()
@@ -76,6 +110,7 @@ func _start_wave(number: int) -> void:
 	enemy_count = count
 	state.enemies_remaining = count
 	state.wave_changed.emit(number, count, 0.0)
+	play_sound("ui_click")
 	for index in range(count):
 		var enemy := ENEMY_SCENE.instantiate() as ArenaEnemy
 		enemy.position = _spawn_position(index)
@@ -158,9 +193,11 @@ func spawn_impact(position: Vector3) -> void:
 	var timer := get_tree().create_timer(0.08)
 	timer.timeout.connect(light.queue_free)
 	_particle_burst(position, Color(1.0, 0.3, 0.05))
+	play_sound_3d("impact", position)
 
 func spawn_death_effect(position: Vector3) -> void:
 	_particle_burst(position + Vector3.UP, Color(0.8, 0.05, 0.08))
+	play_sound_3d("enemy_death", position)
 
 func _particle_burst(position: Vector3, color: Color) -> void:
 	var particles := GPUParticles3D.new()

@@ -73,6 +73,7 @@ func can_see_player() -> bool:
 func take_damage(amount: int, hit_position: Vector3) -> void:
 	health -= amount
 	hit_flash = 0.12
+	get_tree().call_group("game", "play_sound_3d", "impact", hit_position)
 	get_tree().call_group("game", "spawn_impact", hit_position)
 	if health <= 0:
 		get_tree().call_group("game", "spawn_death_effect", global_position)

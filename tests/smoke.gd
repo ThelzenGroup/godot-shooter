@@ -107,7 +107,7 @@ func _initialize() -> void:
 	state = root.get_node("GameState") as GameStateModel
 	_assert(not paused, "restart clears tree pause")
 	_assert(state.health == state.max_health and state.wave == 0 and not state.dead, "restart fully resets GameState")
-	_cleanup()
+	await _cleanup()
 
 func _frames(amount: int) -> void:
 	for _index in range(amount):
@@ -141,6 +141,10 @@ func _assert(value: bool, message: String) -> void:
 		push_error("FAIL: " + message)
 
 func _cleanup() -> void:
+	var scene := current_scene
+	if scene != null:
+		scene.queue_free()
+		await process_frame
 	if failures.is_empty():
 		print("SMOKE PASS: all gameplay invariants verified")
 		quit(0)
