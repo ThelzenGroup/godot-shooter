@@ -12,3 +12,8 @@
 Only the individual clips used by the game were copied into the repository. The
 source pack license files were reviewed before extraction; the downloaded packs
 remain outside the repository.
+
+## Sky
+
+- **Urban Street 03 HDRI** — https://polyhaven.com/a/urban_street_03 — CC0
+  (Poly Haven license) — `assets/sky/urban_street_03_1k.hdr`.

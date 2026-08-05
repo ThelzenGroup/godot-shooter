@@ -21,11 +21,11 @@ func _build_environment() -> void:
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_SKY
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 0.7
+	environment.ambient_light_energy = 0.55
+	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 	var sky := Sky.new()
-	var material := ProceduralSkyMaterial.new()
-	material.sky_top_color = Color(0.02, 0.04, 0.12)
-	material.sky_horizon_color = Color(0.35, 0.12, 0.08)
+	var material := PanoramaSkyMaterial.new()
+	material.panorama = load("res://assets/sky/urban_street_03_1k.hdr") as Texture2D
 	sky.sky_material = material
 	environment.sky = sky
 	world.environment = environment
