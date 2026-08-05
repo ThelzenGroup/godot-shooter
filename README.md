@@ -1,4 +1,24 @@
-# godot-shooter
+# Procedural Arena FPS
+
+## Run
+
+Open the project with Godot 4.7.1 standard (GDScript), then press Play. The
+arena is generated entirely from primitive meshes and built-in materials.
+
+## Controls
+
+- **WASD** move, **Shift** sprint, **Space** jump
+- **Mouse** look, **Left mouse** fire, **R** reload
+- **1 / 2** switch pistol and rifle fire modes, **Esc** release the mouse
+
+The player has no health regeneration. Waves 1–5 increase enemy count and
+health; tune `MAX_WAVE`, spawn points, or the `ArenaEnemy` exports in
+`scripts/main.gd` and `scripts/enemy.gd`.
+
+The project is organized into reusable scenes: `Player.tscn`, `Enemy.tscn`,
+`Arena.tscn`, `HUD.tscn`, and menu/result scenes. `tests/smoke.gd` is a
+headless integration test covering floor collision, gravity, movement,
+shooting, reloads, damage/death, and wave progression.
 
 A 3D first-person shooter built with [Godot 4](https://godotengine.org/) (GDScript).
 
