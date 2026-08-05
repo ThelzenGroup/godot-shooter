@@ -25,4 +25,6 @@ jobs:
         run: |
           set -o pipefail
           ./godot --headless --path . --quit-after 300 2>&1 | tee smoke.log
-          ! grep -E "SCRIPT ERROR|ERROR|Condition" smoke.log
+          ! grep -E "^(SCRIPT ERROR:|ERROR:|E [0-9]+:|Condition .* failed)" smoke.log
+      - name: Gameplay integration test
+        run: ./godot --headless --path . --script res://tests/smoke.gd

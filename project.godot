@@ -19,6 +19,12 @@ environment/defaults/default_clear_color=Color(0.025, 0.035, 0.06, 1)
 [physics]
 3d/default_gravity=18.0
 
+[layer_names]
+3d_physics/layer_1="world"
+3d_physics/layer_2="player"
+3d_physics/layer_3="projectile"
+3d_physics/layer_4="enemy"
+
 [input]
 move_forward={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":87)]}
 move_back={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":83)]}

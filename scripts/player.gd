@@ -5,32 +5,36 @@ extends CharacterBody3D
 @export var sprint_speed: float = 11.0
 @export var acceleration: float = 28.0
 @export var friction: float = 20.0
+@export var jump_velocity: float = 7.5
 @export var mouse_sensitivity: float = 0.0025
-@export var magazine_size: int = 12
 @export var reload_time: float = 1.2
+@export var spread_degrees: float = 1.2
+@export var gravity: float = 18.0
+
+const WEAPONS: Dictionary = {
+	1: {"magazine": 12, "reserve": 72, "rate": 0.28, "damage": 30},
+	2: {"magazine": 30, "reserve": 120, "rate": 0.10, "damage": 12},
+}
 
 var camera: Camera3D
 var pitch: float = 0.0
 var cooldown: float = 0.0
 var reload_left: float = 0.0
-var rifle: bool = false
-var flash_left: float = 0.0
+var weapon_slot: int = 1
+var loaded: Dictionary = {1: 12, 2: 30}
+var reserves: Dictionary = {1: 72, 2: 120}
+var recoil: float = 0.0
+var damage_flash: float = 0.0
+var muzzle_light: OmniLight3D
+var state: Node
+var movement_enabled: bool = true
 
 func _ready() -> void:
-	camera = Camera3D.new()
-	camera.position = Vector3(0, 0.65, 0)
-	camera.current = true
-	add_child(camera)
-	var body_mesh := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.height = 1.8
-	capsule.radius = 0.35
-	body_mesh.mesh = capsule
-	body_mesh.visible = false
-	add_child(body_mesh)
+	camera = get_node_or_null("Camera3D")
+	muzzle_light = get_node_or_null("MuzzleLight")
+	state = get_node("/root/GameState")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	GameState.health_changed.emit(GameState.health, GameState.max_health)
-	GameState.ammo_changed.emit(GameState.ammo, GameState.reserve)
+	_sync_ammo()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -38,57 +42,101 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch = clampf(pitch - event.relative.y * mouse_sensitivity, -1.55, 1.55)
 		camera.rotation.x = pitch
 	if event.is_action_pressed("pause"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		get_tree().call_group("game", "toggle_pause")
 
 func _physics_process(delta: float) -> void:
+	cooldown = maxf(0.0, cooldown - delta)
 	if reload_left > 0.0:
 		reload_left -= delta
 		if reload_left <= 0.0:
-			var needed: int = magazine_size - GameState.ammo
-			var loaded: int = mini(needed, GameState.reserve)
-			GameState.ammo += loaded
-			GameState.reserve -= loaded
-			GameState.ammo_changed.emit(GameState.ammo, GameState.reserve)
-	cooldown = maxf(0.0, cooldown - delta)
-	flash_left = maxf(0.0, flash_left - delta)
-	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction := (transform.basis * Vector3(input_vec.x, 0, input_vec.y)).normalized()
+			reload_left = 0.0
+			_finish_reload()
+	recoil = move_toward(recoil, 0.0, delta * 5.0)
+	damage_flash = maxf(0.0, damage_flash - delta)
+	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if movement_enabled else Vector2.ZERO
+	var direction := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
 	var target_speed: float = sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	var target := direction * target_speed
 	var rate: float = acceleration if direction != Vector3.ZERO else friction
 	velocity.x = move_toward(velocity.x, target.x, rate * delta)
 	velocity.z = move_toward(velocity.z, target.z, rate * delta)
-	if is_on_floor():
-		if Input.is_action_just_pressed("jump"):
-			velocity.y = 7.5
-	else:
-		velocity.y -= float(ProjectSettings.get_setting("physics/3d/default_gravity")) * delta
+	if is_on_floor() and Input.is_action_just_pressed("jump"):
+		velocity.y = jump_velocity
+	if not is_on_floor():
+		velocity.y -= gravity * delta
 	move_and_slide()
 	if Input.is_action_pressed("fire"):
 		fire()
 	if Input.is_action_just_pressed("reload"):
 		start_reload()
 	if Input.is_action_just_pressed("weapon_1"):
-		rifle = false
-		magazine_size = 12
+		switch_weapon(1)
 	if Input.is_action_just_pressed("weapon_2"):
-		rifle = true
-		magazine_size = 30
+		switch_weapon(2)
+
+func switch_weapon(slot: int) -> void:
+	if not WEAPONS.has(slot) or slot == weapon_slot:
+		return
+	weapon_slot = slot
+	reload_left = 0.0
+	_sync_ammo()
 
 func fire() -> void:
-	if cooldown > 0.0 or reload_left > 0.0 or GameState.ammo <= 0:
+	if cooldown > 0.0 or reload_left > 0.0 or loaded[weapon_slot] <= 0:
 		return
-	var rate: float = 0.1 if rifle else 0.28
-	cooldown = rate
-	GameState.ammo -= 1
-	GameState.ammo_changed.emit(GameState.ammo, GameState.reserve)
-	var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position - camera.global_transform.basis.z * 120.0)
+	var stats: Dictionary = WEAPONS[weapon_slot]
+	cooldown = float(stats["rate"])
+	loaded[weapon_slot] -= 1
+	_sync_ammo()
+	recoil += 0.018 if weapon_slot == 2 else 0.028
+	camera.rotation.x -= recoil
+	_show_muzzle_flash()
+	var spread := deg_to_rad(spread_degrees)
+	var direction := -camera.global_transform.basis.z
+	direction = direction.rotated(camera.global_transform.basis.x, randf_range(-spread, spread))
+	direction = direction.rotated(camera.global_transform.basis.y, randf_range(-spread, spread))
+	var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + direction * 120.0)
+	query.collision_mask = 1 | 4
 	query.exclude = [self]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if not hit.is_empty() and hit.collider is ArenaEnemy:
-		var damage_amount: int = 12 if rifle else 30
-		hit.collider.take_damage(damage_amount, hit.position)
+	if not hit.is_empty():
+		var enemy := hit.collider as ArenaEnemy
+		if enemy != null:
+			enemy.take_damage(int(stats["damage"]), hit.position)
+		get_tree().call_group("game", "spawn_impact", hit.position)
+
+func fire_at(target: ArenaEnemy) -> void:
+	var stats: Dictionary = WEAPONS[weapon_slot]
+	if loaded[weapon_slot] <= 0:
+		return
+	loaded[weapon_slot] -= 1
+	_sync_ammo()
+	target.take_damage(int(stats["damage"]), target.global_position)
 
 func start_reload() -> void:
-	if reload_left <= 0.0 and GameState.ammo < magazine_size and GameState.reserve > 0:
+	if reload_left <= 0.0 and loaded[weapon_slot] < int(WEAPONS[weapon_slot]["magazine"]) and reserves[weapon_slot] > 0:
 		reload_left = reload_time
+
+func _finish_reload() -> void:
+	var magazine: int = int(WEAPONS[weapon_slot]["magazine"])
+	var needed: int = magazine - loaded[weapon_slot]
+	var amount: int = mini(needed, reserves[weapon_slot])
+	loaded[weapon_slot] += amount
+	reserves[weapon_slot] -= amount
+	_sync_ammo()
+
+func _sync_ammo() -> void:
+	state.ammo = loaded[weapon_slot]
+	state.reserve = reserves[weapon_slot]
+	state.ammo_changed.emit(state.ammo, state.reserve)
+
+func hurt(amount: int) -> void:
+	damage_flash = 0.25
+	state.damage(amount)
+
+func _show_muzzle_flash() -> void:
+	if muzzle_light == null:
+		return
+	muzzle_light.visible = true
+	var timer := get_tree().create_timer(0.06)
+	timer.timeout.connect(func() -> void: muzzle_light.visible = false)
