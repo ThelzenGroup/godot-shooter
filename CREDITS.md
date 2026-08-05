@@ -17,3 +17,9 @@ remain outside the repository.
 
 - **Urban Street 03 HDRI** — https://polyhaven.com/a/urban_street_03 — CC0
   (Poly Haven license) — `assets/sky/urban_street_03_1k.hdr`.
+
+## Weapon viewmodels
+
+- **Blaster Kit 2.1** — https://kenney.nl/assets/blaster-kit — Creative Commons
+  CC0 — `assets/weapons/blaster-a.glb`, `assets/weapons/blaster-b.glb`, and
+  `assets/weapons/colormap.png`.
