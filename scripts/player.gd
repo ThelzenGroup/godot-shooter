@@ -19,6 +19,7 @@ const VIEWMODEL_SCENES: Dictionary = {
 	1: preload("res://assets/weapons/blaster-a.glb"),
 	2: preload("res://assets/weapons/blaster-b.glb")
 }
+const VIEWMODEL_TEXTURE: Texture2D = preload("res://assets/weapons/Textures/colormap.png")
 
 var camera: Camera3D
 var pitch: float = 0.0
@@ -50,8 +51,18 @@ func _setup_viewmodels() -> void:
 		viewmodel.rotation_degrees = Vector3(0, 180, 0)
 		viewmodel.scale = Vector3.ONE * 0.35
 		camera.add_child(viewmodel)
+		_apply_viewmodel_materials(viewmodel)
 		viewmodels[slot] = viewmodel
 		viewmodel.visible = slot == weapon_slot
+
+func _apply_viewmodel_materials(node: Node) -> void:
+	if node is MeshInstance3D:
+		var material := StandardMaterial3D.new()
+		material.albedo_texture = VIEWMODEL_TEXTURE
+		material.metallic = 0.0
+		(node as MeshInstance3D).material_override = material
+	for child in node.get_children():
+		_apply_viewmodel_materials(child)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:

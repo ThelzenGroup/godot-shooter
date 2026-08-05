@@ -5,6 +5,7 @@ extends Control
 var primary_button: Button
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var panel := ColorRect.new()
 	panel.color = Color(0.02, 0.025, 0.06, 0.92)
