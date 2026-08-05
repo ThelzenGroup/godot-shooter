@@ -15,6 +15,11 @@ const WEAPONS: Dictionary = {
 	1: {"magazine": 12, "reserve": 72, "rate": 0.28, "damage": 30},
 	2: {"magazine": 30, "reserve": 120, "rate": 0.10, "damage": 12},
 }
+const VIEWMODEL_SCENES: Dictionary = {
+	1: preload("res://assets/weapons/blaster-a.glb"),
+	2: preload("res://assets/weapons/blaster-b.glb")
+}
+const VIEWMODEL_TEXTURE: Texture2D = preload("res://assets/weapons/Textures/colormap.png")
 
 var camera: Camera3D
 var pitch: float = 0.0
@@ -28,6 +33,8 @@ var damage_flash: float = 0.0
 var muzzle_light: OmniLight3D
 var state: GameStateModel
 var aim_override: Vector3 = Vector3.ZERO
+var viewmodels: Dictionary = {}
+var viewmodel_kick: float = 0.0
 
 func _ready() -> void:
 	camera = get_node_or_null("Camera3D")
@@ -35,6 +42,27 @@ func _ready() -> void:
 	state = get_node("/root/GameState") as GameStateModel
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_sync_ammo()
+	_setup_viewmodels()
+
+func _setup_viewmodels() -> void:
+	for slot in VIEWMODEL_SCENES:
+		var viewmodel := VIEWMODEL_SCENES[slot].instantiate() as Node3D
+		viewmodel.position = Vector3(0.25, -0.25, -0.8)
+		viewmodel.rotation_degrees = Vector3(0, 180, 0)
+		viewmodel.scale = Vector3.ONE * 0.35
+		camera.add_child(viewmodel)
+		_apply_viewmodel_materials(viewmodel)
+		viewmodels[slot] = viewmodel
+		viewmodel.visible = slot == weapon_slot
+
+func _apply_viewmodel_materials(node: Node) -> void:
+	if node is MeshInstance3D:
+		var material := StandardMaterial3D.new()
+		material.albedo_texture = VIEWMODEL_TEXTURE
+		material.metallic = 0.0
+		(node as MeshInstance3D).material_override = material
+	for child in node.get_children():
+		_apply_viewmodel_materials(child)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -52,6 +80,10 @@ func _physics_process(delta: float) -> void:
 			reload_left = 0.0
 			_finish_reload()
 	recoil = move_toward(recoil, 0.0, delta * 5.0)
+	viewmodel_kick = move_toward(viewmodel_kick, 0.0, delta * 3.5)
+	for slot in viewmodels:
+		var viewmodel := viewmodels[slot] as Node3D
+		viewmodel.position = Vector3(0.25, -0.25, -0.8 + viewmodel_kick)
 	camera.rotation.x = pitch - recoil
 	damage_flash = maxf(0.0, damage_flash - delta)
 	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -80,6 +112,8 @@ func switch_weapon(slot: int) -> void:
 		return
 	weapon_slot = slot
 	reload_left = 0.0
+	for viewmodel_slot in viewmodels:
+		(viewmodels[viewmodel_slot] as Node3D).visible = viewmodel_slot == weapon_slot
 	_sync_ammo()
 
 func fire() -> void:
@@ -89,6 +123,8 @@ func fire() -> void:
 	cooldown = float(stats["rate"])
 	loaded[weapon_slot] -= 1
 	_sync_ammo()
+	get_tree().call_group("game", "play_sound", "fire")
+	viewmodel_kick = 0.12
 	recoil += 0.018 if weapon_slot == 2 else 0.028
 	camera.rotation.x = pitch - recoil
 	_show_muzzle_flash()
@@ -114,6 +150,7 @@ func _fire_direction() -> Vector3:
 func start_reload() -> void:
 	if reload_left <= 0.0 and loaded[weapon_slot] < int(WEAPONS[weapon_slot]["magazine"]) and reserves[weapon_slot] > 0:
 		reload_left = reload_time
+		get_tree().call_group("game", "play_sound", "reload")
 
 func _finish_reload() -> void:
 	var magazine: int = int(WEAPONS[weapon_slot]["magazine"])
@@ -130,6 +167,7 @@ func _sync_ammo() -> void:
 
 func hurt(amount: int) -> void:
 	damage_flash = 0.25
+	get_tree().call_group("game", "play_sound", "hurt")
 	state.damage(amount)
 
 func _show_muzzle_flash() -> void:

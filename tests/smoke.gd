@@ -31,12 +31,27 @@ func _initialize() -> void:
 	main.add_child(enemy)
 	enemy.setup(player, 0)
 	var initial_distance: float = enemy.global_position.distance_to(player.global_position)
-	await _frames(60)
+	await _frames(120)
 	print("CHECK: enemy position ", enemy.global_position, " velocity ", enemy.velocity, " sees ", enemy.can_see_player(), " player ", player.global_position, " distance ", enemy.global_position.distance_to(player.global_position))
 	_assert(enemy.can_see_player(), "enemy has line of sight")
 	_assert(enemy.global_position.distance_to(player.global_position) < initial_distance - 0.2, "enemy approaches player")
 	_assert(enemy.global_position.y < 1.2, "enemy is affected by gravity")
 	_assert(not _inside_cover(enemy.global_position), "enemy does not enter cover")
+	var memory_enemy := load("res://scenes/Enemy.tscn").instantiate() as ArenaEnemy
+	memory_enemy.position = Vector3(0, 1, 10)
+	main.add_child(memory_enemy)
+	memory_enemy.setup(player, 0)
+	await _frames(30)
+	_assert(memory_enemy.can_see_player(), "enemy records a visible player position")
+	var last_known_position: Vector3 = player.global_position
+	memory_enemy.position = Vector3(-1.9, 1, 5)
+	var memory_distance: float = memory_enemy.global_position.distance_to(last_known_position)
+	await _frames(60)
+	print("CHECK: memory enemy position ", memory_enemy.global_position, " distance to last known ", memory_enemy.global_position.distance_to(last_known_position))
+	_assert(not memory_enemy.can_see_player(), "enemy loses line of sight behind cover")
+	_assert(memory_enemy.global_position.distance_to(last_known_position) < memory_distance - 0.2, "enemy chases last known position after losing sight")
+	memory_enemy.queue_free()
+	await process_frame
 	var health_before: int = state.health
 	enemy.position = player.global_position + Vector3(0, 0, -1.0)
 	await _frames(70)
@@ -107,7 +122,15 @@ func _initialize() -> void:
 	state = root.get_node("GameState") as GameStateModel
 	_assert(not paused, "restart clears tree pause")
 	_assert(state.health == state.max_health and state.wave == 0 and not state.dead, "restart fully resets GameState")
-	_cleanup()
+	main = current_scene as Node3D
+	await _click_control(main.main_menu.primary_button as Button)
+	main._on_victory()
+	var victory_button := main.victory.primary_button as Button
+	_assert(victory_button != null and victory_button.visible, "victory exposes clickable Restart button while paused")
+	await _click_control(victory_button)
+	await process_frame
+	_assert(not paused, "victory restart clears tree pause")
+	await _cleanup()
 
 func _frames(amount: int) -> void:
 	for _index in range(amount):
@@ -141,6 +164,10 @@ func _assert(value: bool, message: String) -> void:
 		push_error("FAIL: " + message)
 
 func _cleanup() -> void:
+	var scene := current_scene
+	if scene != null:
+		scene.queue_free()
+		await process_frame
 	if failures.is_empty():
 		print("SMOKE PASS: all gameplay invariants verified")
 		quit(0)

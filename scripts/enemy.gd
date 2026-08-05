@@ -7,6 +7,7 @@ extends CharacterBody3D
 @export var attack_range: float = 1.7
 @export var detection_radius: float = 22.0
 @export var gravity: float = 18.0
+@export var memory_duration: float = 3.0
 
 var health: int
 var player: ArenaPlayer
@@ -16,6 +17,8 @@ var body_mesh: MeshInstance3D
 var hit_flash: float = 0.0
 var state: GameStateModel
 var desired_velocity: Vector3 = Vector3.ZERO
+var last_known_position: Vector3 = Vector3.ZERO
+var memory_left: float = 0.0
 
 func _ready() -> void:
 	health = base_health
@@ -38,14 +41,21 @@ func _physics_process(delta: float) -> void:
 	var direction := Vector3.ZERO
 	if is_instance_valid(player):
 		var distance := global_position.distance_to(player.global_position)
-		if distance <= detection_radius and _has_line_of_sight():
-			agent.target_position = player.global_position
+		var sees_player := distance <= detection_radius and _has_line_of_sight()
+		if sees_player:
+			last_known_position = player.global_position
+			memory_left = memory_duration
+		elif memory_left > 0.0:
+			memory_left = maxf(0.0, memory_left - delta)
+		if sees_player or memory_left > 0.0:
+			var target_position := player.global_position if sees_player else last_known_position
+			agent.target_position = target_position
 			var next := agent.get_next_path_position()
-			var target := player.global_position
-			if next != Vector3.ZERO and global_position.distance_to(next) < distance:
+			var target := target_position
+			if next != Vector3.ZERO and global_position.distance_to(next) < global_position.distance_to(target_position):
 				target = next
 			direction = global_position.direction_to(target)
-			if distance <= attack_range and attack_cooldown <= 0.0 and _has_line_of_sight():
+			if sees_player and distance <= attack_range and attack_cooldown <= 0.0:
 				attack_cooldown = 1.0
 				player.hurt(attack_damage)
 	desired_velocity = Vector3(direction.x * speed, velocity.y, direction.z * speed)
@@ -73,6 +83,7 @@ func can_see_player() -> bool:
 func take_damage(amount: int, hit_position: Vector3) -> void:
 	health -= amount
 	hit_flash = 0.12
+	get_tree().call_group("game", "play_sound_3d", "impact", hit_position)
 	get_tree().call_group("game", "spawn_impact", hit_position)
 	if health <= 0:
 		get_tree().call_group("game", "spawn_death_effect", global_position)

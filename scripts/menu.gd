@@ -5,6 +5,7 @@ extends Control
 var primary_button: Button
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var panel := ColorRect.new()
 	panel.color = Color(0.02, 0.025, 0.06, 0.92)
@@ -39,6 +40,7 @@ func _input(event: InputEvent) -> void:
 		if primary_button.get_global_rect().has_point(event.position):
 			_primary()
 func _primary() -> void:
+	get_tree().call_group("game", "play_sound", "ui_click")
 	var game := get_tree().get_first_node_in_group("game") as Node
 	if game != null and game.has_method("menu_primary"):
 		game.menu_primary()
