@@ -147,6 +147,33 @@ func spawn_impact(position: Vector3) -> void:
 	add_child(light)
 	var timer := get_tree().create_timer(0.08)
 	timer.timeout.connect(light.queue_free)
+	_particle_burst(position, Color(1.0, 0.3, 0.05))
 
 func spawn_death_effect(position: Vector3) -> void:
-	spawn_impact(position)
+	_particle_burst(position + Vector3.UP, Color(0.8, 0.05, 0.08))
+
+func _particle_burst(position: Vector3, color: Color) -> void:
+	var particles := GPUParticles3D.new()
+	particles.position = position
+	particles.amount = 18
+	particles.lifetime = 0.35
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	var process_material := ParticleProcessMaterial.new()
+	process_material.direction = Vector3.UP
+	process_material.spread = 180.0
+	process_material.initial_velocity_min = 1.5
+	process_material.initial_velocity_max = 4.0
+	process_material.gravity = Vector3(0, -5, 0)
+	particles.process_material = process_material
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.045
+	mesh.height = 0.09
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	mesh.material = material
+	particles.draw_pass_1 = mesh
+	add_child(particles)
+	particles.emitting = true
+	var timer := get_tree().create_timer(particles.lifetime + 0.1)
+	timer.timeout.connect(particles.queue_free)

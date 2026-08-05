@@ -31,6 +31,7 @@ func _initialize() -> void:
 	_assert(enemy.can_see_player(), "enemy has line of sight")
 	_assert(enemy.global_position.distance_to(player.global_position) < initial_distance - 0.2, "enemy approaches player")
 	_assert(enemy.global_position.y < 1.2, "enemy is affected by gravity")
+	_assert(not _inside_cover(enemy.global_position), "enemy does not enter cover")
 	var health_before: int = state.health
 	enemy.position = player.global_position + Vector3(0, 0, -1.0)
 	await _frames(70)
@@ -79,6 +80,9 @@ func _remove_enemies() -> void:
 	for child in main.get_children():
 		if child is ArenaEnemy:
 			child.queue_free()
+
+func _inside_cover(position: Vector3) -> bool:
+	return (absf(position.x + 7.0) < 1.6 and absf(position.z) < 1.6) or (absf(position.x - 7.0) < 1.6 and absf(position.z) < 1.6) or (absf(position.x) < 1.6 and absf(position.z + 7.0) < 1.6) or (absf(position.x) < 1.6 and absf(position.z - 7.0) < 1.6)
 
 func _assert(value: bool, message: String) -> void:
 	if value:
