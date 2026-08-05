@@ -2,10 +2,10 @@
 
 ## Audio
 
-- **Impact Sounds** — https://kenney.nl/assets/impact-sounds — Creative Commons
-  CC0 — `assets/audio/impact.ogg`, `assets/audio/death.ogg`.
-- **UI Audio** — https://kenney.nl/assets/ui-audio — Creative Commons CC0 —
-  `assets/audio/click.ogg`, `assets/audio/reload.ogg`.
+- **Impact Sounds** - https://kenney.nl/assets/impact-sounds - Creative Commons
+  CC0 - `assets/audio/impact.ogg`, `assets/audio/player_hurt.ogg`.
+- **UI Audio** - https://kenney.nl/assets/ui-audio - Creative Commons CC0 -
+  `assets/audio/click.ogg`, `assets/audio/reload.ogg`, `assets/audio/wave_start.ogg`.
 - **Sci-fi Sounds** — https://kenney.nl/assets/sci-fi-sounds — Creative Commons
   CC0 — `assets/audio/fire.ogg`, `assets/audio/enemy_death.ogg`.
 

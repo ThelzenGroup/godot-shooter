@@ -15,8 +15,9 @@ const AUDIO_STREAMS: Dictionary = {
 	"impact": preload("res://assets/audio/impact.ogg"),
 	"enemy_death": preload("res://assets/audio/enemy_death.ogg"),
 	"reload": preload("res://assets/audio/reload.ogg"),
-	"hurt": preload("res://assets/audio/death.ogg"),
-	"ui_click": preload("res://assets/audio/click.ogg")
+	"hurt": preload("res://assets/audio/player_hurt.ogg"),
+	"ui_click": preload("res://assets/audio/click.ogg"),
+	"wave_start": preload("res://assets/audio/wave_start.ogg")
 }
 
 var mode: GameMode = GameMode.MENU
@@ -31,6 +32,8 @@ var hud: CanvasLayer
 var menu_layer: CanvasLayer
 var state: GameStateModel
 var audio_players: Dictionary = {}
+var positional_audio_pool: Array[AudioStreamPlayer3D] = []
+var positional_audio_index: int = 0
 
 func _ready() -> void:
 	add_to_group("game")
@@ -84,6 +87,12 @@ func _setup_audio() -> void:
 		player.volume_db = -8.0
 		add_child(player)
 		audio_players[sound_name] = player
+	for index in range(8):
+		var positional_player := AudioStreamPlayer3D.new()
+		positional_player.name = "Audio3D_" + str(index)
+		positional_player.volume_db = -8.0
+		add_child(positional_player)
+		positional_audio_pool.append(positional_player)
 
 func play_sound(sound_name: String) -> void:
 	var player := audio_players.get(sound_name) as AudioStreamPlayer
@@ -91,14 +100,15 @@ func play_sound(sound_name: String) -> void:
 		player.play()
 
 func play_sound_3d(sound_name: String, position: Vector3) -> void:
-	var player := AudioStreamPlayer3D.new()
+	if positional_audio_pool.is_empty():
+		return
+	var player := positional_audio_pool[positional_audio_index]
+	positional_audio_index = (positional_audio_index + 1) % positional_audio_pool.size()
+	player.stop()
 	player.stream = AUDIO_STREAMS.get(sound_name) as AudioStream
 	player.volume_db = -8.0
-	add_child(player)
 	player.global_position = position
 	player.play()
-	var timer := get_tree().create_timer(2.0)
-	timer.timeout.connect(player.queue_free)
 
 func _start_wave(number: int) -> void:
 	if number > GameConstants.MAX_WAVE:
@@ -110,7 +120,7 @@ func _start_wave(number: int) -> void:
 	enemy_count = count
 	state.enemies_remaining = count
 	state.wave_changed.emit(number, count, 0.0)
-	play_sound("ui_click")
+	play_sound("wave_start")
 	for index in range(count):
 		var enemy := ENEMY_SCENE.instantiate() as ArenaEnemy
 		enemy.position = _spawn_position(index)
